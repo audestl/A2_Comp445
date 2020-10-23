@@ -81,7 +81,6 @@ public class Parsing {
 	    if(method.equalsIgnoreCase("post"))
 	    {
 	    	contentLength = Integer.parseInt(headers.get("content-length"));	
-	   
 	    }
 	    else
 	    	contentLength=0;
