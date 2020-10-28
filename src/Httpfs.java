@@ -73,6 +73,8 @@ public class Httpfs {
 			}
 			Socket client = server.accept();
 			BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
+	
+			
 		}
 		catch (Exception e){
 			System.out.println(e.getMessage());
