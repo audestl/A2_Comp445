@@ -73,7 +73,13 @@ public class Httpfs {
 			}
 			Socket client = server.accept();
 			BufferedReader in = new BufferedReader(new InputStreamReader(client.getInputStream()));
-	
+			//Read through the whole input stream
+			// Separate request
+			// split into string array
+			//String concatenation / headers1 + entityBody1
+			
+			
+
 			
 		}
 		catch (Exception e){
@@ -85,6 +91,7 @@ public class Httpfs {
 
 		String method;
 		String url;
+		String entityBody;
 		String version = "HTTP/1.0";
 		HashMap<String, String> headers = new HashMap();
 		String request = "POST /localhost:8080 HTTP/1.0\r\nContent-length:5\r\nUser-agent:me\r\n\r\n";
@@ -127,11 +134,29 @@ public class Httpfs {
 		// For POST
 		// Find content-length header
 		int contentLength;
-		if(method.equalsIgnoreCase("post"))
-		{
-			contentLength = Integer.parseInt(headers.get("content-length"));
+		   if(method.equalsIgnoreCase("post"))
+		    {
+		    	contentLength = Integer.parseInt(headers.get("content-length"));
+			    StringBuilder builder = new StringBuilder();
+			    int body;
+			    int count=0;
+			    body = br.read();
+			    while(count<contentLength) {
+			    		
+			    	 char temp = (char)body;
+			    	 builder.append(temp);
+			    	 body = br.read();
+			    	 count++;
+			    	 
+			    }
+			    entityBody = builder.toString();
+		    }
+		    else
+		    	contentLength=0;
+		   
+		   
+		    
 
-		}
 
 	}
 

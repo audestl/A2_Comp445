@@ -13,6 +13,7 @@ public class Parsing {
 	private String method;
 	private String url;
 	private String version = "HTTP/1.0";
+	private String entityBody;
 
 	
 	
@@ -25,7 +26,7 @@ public class Parsing {
 	public void ParseRequest() throws IOException {
 		
 		
-		String request = "POST /localhost:8080 HTTP/1.0\r\nContent-length:5\r\nUser-agent:me\r\n\r\n";
+		String request = "POST /localhost:8080 HTTP/1.0\r\nContent-length:13\r\nUser-agent:me\r\n\r\nHi my name is";
 		
 
 		StringReader reader = new StringReader(request);
@@ -78,14 +79,32 @@ public class Parsing {
 	    // For POST
 	    // Find content-length header
 	    int contentLength;
+	  
 	    if(method.equalsIgnoreCase("post"))
 	    {
-	    	contentLength = Integer.parseInt(headers.get("content-length"));	
-	   
+	    	contentLength = Integer.parseInt(headers.get("content-length"));
+		    StringBuilder builder = new StringBuilder();
+		    int body;
+		    int count=0;
+		    body = br.read();
+		    while(count<contentLength) {
+		    		
+		    	 char temp = (char)body;
+		    	 builder.append(temp);
+		    	 body = br.read();
+		    	 count++;
+		    	 
+		    }
+		    entityBody = builder.toString();
 	    }
 	    else
 	    	contentLength=0;
-	
+	    
+
+	   
+	  
+
+
 	    
 	    
 	    
