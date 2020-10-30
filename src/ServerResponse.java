@@ -1,6 +1,10 @@
 
 public class ServerResponse {
 
+	public Request Request;
+	public ServerResponse(Request request){
+		this.Request = request;
+	}
 	
 
 	public String getStatusCode(int code) {
