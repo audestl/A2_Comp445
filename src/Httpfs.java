@@ -58,7 +58,6 @@ public class Httpfs {
 		}
 		if(pathDirNotDefined){
 			rootPath = new File("testFolder");
-			rootPath.mkdir();
 		}
 		CreateConnection(port, verboseEnabled, rootPath);
 	}
@@ -84,21 +83,23 @@ public class Httpfs {
 
 			String initial = br.readLine();
 			HashMap<String, String> head = new HashMap();
-			String request = ExtractRequest(br, initial, head);
+			String requestMessage = GetRequestMessage(br, initial, head);
+
+			Request request = ParseRequest(requestMessage);
+			ServerResponse response = new ServerResponse(request, rootPath);
 
 			PrintWriter out = new PrintWriter(client.getOutputStream());
-			out.print("HTTP/1.0 200 OK\r\nContent-Type:text/html\r\nContent-Length:5\r\n\r\nHello");
+			System.out.println("\nResponse: \n" + response.ToString());
+			out.print(response.ToString());
 			out.flush();
 			out.close();
-			ParseRequest(request);
-			
 		}
 		catch (Exception e){
 			System.out.println(e.getMessage());
 		}
 	}
 
-	public static String ExtractRequest(BufferedReader br, String initial, HashMap<String, String> head) throws IOException {
+	public static String GetRequestMessage(BufferedReader br, String initial, HashMap<String, String> head) throws IOException {
 
 		//headers
 		String line = br.readLine();
@@ -133,11 +134,11 @@ public class Httpfs {
 			entityBody = builder.toString();
 		}
 
-		String newRequest = GetRequestString(initial, head, entityBody);
+		String newRequest = BuildRequestMessage(initial, head, entityBody);
 		return newRequest;
 	}
 
-	public static String GetRequestString(String initial, HashMap<String, String> head, String entityBody){
+	public static String BuildRequestMessage(String initial, HashMap<String, String> head, String entityBody){
 
 		List<String> formattedHeaders = new ArrayList<String>();
 		head.forEach((name, value) -> formattedHeaders.add(String.format("%s: %s", name, value)));
@@ -153,13 +154,13 @@ public class Httpfs {
 		return requestMessage;
 	}
 
-	public static void ParseRequest(String requestMessage) throws IOException {
+	public static Request ParseRequest(String requestMessage) throws IOException {
 
 		System.out.println("Request Message: \n" + requestMessage);
 		String method;
 		String url;
 		String entityBody;
-		String version = "HTTP/1.0";
+		String version;
 		HashMap<String, String> headers = new HashMap();
 
 		StringReader reader = new StringReader(requestMessage);
@@ -167,8 +168,9 @@ public class Httpfs {
 
 		String initial = br.readLine();
 		String requestLine[] = initial.split("\\s");
-		method = requestLine[0];
+		method = requestLine[0].toUpperCase();
 		url = requestLine[1];
+		version = requestLine[2];
 
 		for(int i=0; i<requestLine.length; i++) {
 			System.out.println(requestLine[i]);
@@ -201,8 +203,8 @@ public class Httpfs {
 		// Find content-length header
 		int contentLength;
 		Request request = null;
-		switch(method.toLowerCase()){
-			case "post":
+		switch(method){
+			case "POST":
 				contentLength = Integer.parseInt(headers.get("content-length"));
 				StringBuilder builder = new StringBuilder();
 				int body;
@@ -217,15 +219,16 @@ public class Httpfs {
 
 				}
 				entityBody = builder.toString();
-				request = new Request(method.toUpperCase(), url, headers, entityBody);
+				request = new Request(method, url, version, headers, entityBody);
 				break;
-			case "get":
-				request = new Request(method.toUpperCase(), url, headers);
+			case "GET":
+				request = new Request(method, url, version, headers);
 				break;
 			default:
 				Help();
 				break;
 		}
+		return request;
 	}
 
 	public static void Help(){
