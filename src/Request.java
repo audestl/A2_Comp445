@@ -32,4 +32,16 @@ public class Request {
         return headers;
     }
 
+    public String ToString(){
+
+        String str = null;
+        if(Body!=null) {
+            str = Method + " " + Url + " " + Version + " " + GetHeaderString() + " " + Body;
+        }
+        else{
+            str = Method + " " + Url + " " + Version + " " + GetHeaderString();
+        }
+        return str;
+    }
+
 }

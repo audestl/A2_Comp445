@@ -1,10 +1,7 @@
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class Httpfs {
 
@@ -20,6 +17,7 @@ public class Httpfs {
 			switch(args[i]){
 				case "-v":
 					verboseEnabled = true;
+					System.out.println("Verbose option enabled");
 					break;
 				case "-p":
 					if(portNotDefined) {
@@ -29,6 +27,7 @@ public class Httpfs {
 							i++;
 						} catch (NumberFormatException e) {
 							System.out.println(e.getMessage());
+							System.exit(0);
 						}
 					}
 					//Multiple instances of -p option
@@ -68,6 +67,9 @@ public class Httpfs {
 			if(port != -1) {
 				if(port > 1024 && port <=65535) {
 					server = new ServerSocket(port);
+					if(verboseEnabled) {
+						System.out.println("Server with new port "+port+" has been created and is now listening.");
+					}
 				}
 				else{
 					System.out.println("Port number needs to be within Non-Reserved port range: [1024, 65535]. + " +
@@ -77,30 +79,59 @@ public class Httpfs {
 			}
 			else{
 				server = new ServerSocket(8080);
+				if(verboseEnabled) {
+					System.out.println("Server with default port 8080 has been created and is now listening.");
+				}
 			}
 			Socket client = server.accept();
+			if(verboseEnabled) {
+				System.out.println("Client is now connected with Server.");
+			}
 			BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()));
-
-			String initial = br.readLine();
-			HashMap<String, String> head = new HashMap();
-			String requestMessage = GetRequestMessage(br, initial, head);
-
-			Request request = ParseRequest(requestMessage);
-			ServerResponse response = new ServerResponse(request, rootPath);
-
 			PrintWriter out = new PrintWriter(client.getOutputStream());
-			System.out.println("\nResponse: \n" + response.ToString());
+			HashMap<String, String> head = new HashMap();
+
+			String initial;
+			Request request = null;
+
+			// This while loop represents the infinite loop but we make sure to read the whole request in the
+			// GetRequestMessage function. Therefore, the stopping condition has been met already and we just break
+			// from the loop.
+			while((initial = br.readLine()) != null){
+				if(verboseEnabled) {
+					System.out.println("Server received request from client.");
+				}
+				request = GetRequest(br, initial, head);
+				break;
+			}
+			ServerResponse response = new ServerResponse(request, rootPath);
+			if(verboseEnabled) {
+				System.out.println("\nPrinting client's request: \n\n");
+				System.out.println(request.toString()+"\n");
+				System.out.println("Server sending response back to client.");
+				System.out.println("\nPrinting Server's response: \n\n");
+				System.out.println(response.toString());
+			}
 			out.print(response.ToString());
 			out.flush();
 			out.close();
+			if(verboseEnabled) {
+				System.out.println("Connection has been closed.");
+			}
 		}
 		catch (Exception e){
-			System.out.println(e.getMessage());
+			System.out.println("Exception: " + e.getMessage());
+			e.printStackTrace();
 		}
 	}
 
-	public static String GetRequestMessage(BufferedReader br, String initial, HashMap<String, String> head) throws IOException {
+	public static Request GetRequest(BufferedReader br, String initial, HashMap<String, String> head) throws IOException {
 
+		Request request = null;
+		String requestLine[] = initial.split("\\s");
+		String method = requestLine[0].toUpperCase();
+		String url = requestLine[1];
+		String version = requestLine[2];
 		//headers
 		String line = br.readLine();
 
@@ -112,13 +143,13 @@ public class Httpfs {
 				break;
 			} else {
 				String key = line.substring(0, idx).toLowerCase();
-				String value = line.substring(idx + 1);
+				String value = line.substring(idx + 2);
 				head.put(key, value);
 			}
 			line = br.readLine();
 		}
 
-		String entityBody = "";
+		String entityBody = null;
 		if (head.containsKey("content-length")) {
 			int contentLength = 0;
 			contentLength = Integer.parseInt(head.get("content-length"));
@@ -134,95 +165,18 @@ public class Httpfs {
 			entityBody = builder.toString();
 		}
 
-		String newRequest = BuildRequestMessage(initial, head, entityBody);
-		return newRequest;
-	}
-
-	public static String BuildRequestMessage(String initial, HashMap<String, String> head, String entityBody){
-
-		List<String> formattedHeaders = new ArrayList<String>();
-		head.forEach((name, value) -> formattedHeaders.add(String.format("%s: %s", name, value)));
-		String headers = String.join("\r\n", formattedHeaders);
-
-		String requestMessage = null;
-		if(entityBody != null){
-			requestMessage = String.join("\r\n", initial, headers, "", entityBody);
-		}
-		else{
-			requestMessage = String.join("\r\n", initial, headers, "");
-		}
-		return requestMessage;
-	}
-
-	public static Request ParseRequest(String requestMessage) throws IOException {
-
-		System.out.println("Request Message: \n" + requestMessage);
-		String method;
-		String url;
-		String entityBody;
-		String version;
-		HashMap<String, String> headers = new HashMap();
-
-		StringReader reader = new StringReader(requestMessage);
-		BufferedReader br = new BufferedReader(reader);
-
-		String initial = br.readLine();
-		String requestLine[] = initial.split("\\s");
-		method = requestLine[0].toUpperCase();
-		url = requestLine[1];
-		version = requestLine[2];
-
-		for(int i=0; i<requestLine.length; i++) {
-			System.out.println(requestLine[i]);
-		}
-
-		//headers
-		String line = br.readLine();
-
-		while (!line.equals("")) {
-
-			int idx = line.indexOf(':');
-			if (idx < 0) {
-				headers = null;
-				break;
-			}
-			else{
-				String key = line.substring(0, idx).toLowerCase();
-				String value = line.substring(idx+1);
-				headers.put(key, value);
-			}
-			line = br.readLine();
-		}
-
-		for (Map.Entry<String, String> entry : headers.entrySet()) {
-			System.out.println(entry.getKey() + ":" + entry.getValue());
-		}
-
-
-		// For POST
-		// Find content-length header
-		int contentLength;
-		Request request = null;
 		switch(method){
 			case "POST":
-				contentLength = Integer.parseInt(headers.get("content-length"));
-				StringBuilder builder = new StringBuilder();
-				int body;
-				int count=0;
-				body = br.read();
-				while(count<contentLength) {
-
-					char temp = (char)body;
-					builder.append(temp);
-					body = br.read();
-					count++;
-
+				if (!entityBody.isEmpty() && entityBody != null) {
+					request = new Request(method, url, version, head, entityBody);
+					break;
 				}
-				entityBody = builder.toString();
-				request = new Request(method, url, version, headers, entityBody);
-				break;
+				else{
+					request = new Request(method, url, version, head);
+					break;
+				}
 			case "GET":
-				request = new Request(method, url, version, headers);
+				request = new Request(method, url, version, head);
 				break;
 			default:
 				Help();

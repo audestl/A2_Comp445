@@ -1,7 +1,6 @@
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.io.*;
 import java.nio.file.Files;
+import java.sql.SQLOutput;
 
 public class ServerResponse {
 
@@ -74,32 +73,57 @@ public class ServerResponse {
 		}
 		else{
 			responseMessage = Request.Version + " " + getStatusCode() + " " + getStatusPhrase()+ "\r\n" +
-					Request.GetHeaderString() + "\r\n\r\n";
+					Request.GetHeaderString() + "\r\n\r\n"+ GetUrlContent();
 		}
 		return responseMessage;
 	}
 
 	public int PostUrl(File file) throws IOException {
-		boolean createdFile = false;
+		String filePath = file.getPath();
+		String newParent = RootPath.getPath();
+		String[] array = filePath.split("\\\\");
+
 		if(!file.exists()){
-			if(file.isDirectory()){
-				createdFile = file.mkdir();
+			for(int i=1; i<array.length-1; i++){
+				File newFile = new File(newParent, array[i]);
+				String fileName = newFile.getName();
+				if(fileName.contains(".")){
+					System.out.println("Invalid folder name. Try again.");
+					System.exit(0);
+				}
+				else{
+					newFile.mkdir();
+					newParent = newFile.getPath();
+				}
 			}
-			if(file.isFile()){
-				createdFile = file.createNewFile();
+			if(array[array.length-1].contains(".")){
+				File newFile = new File(newParent, array[array.length-1]);
+				newFile.createNewFile();
 			}
-			if(createdFile){
-				return 201;
+			else {
+				File newFile = new File(newParent, array[array.length-1]);
+				newFile.mkdir();
 			}
+			return 201;
 		}
 		else{
+			if(file.isDirectory()){
+				if(!file.canWrite()){
+					return 403;
+				}
+				else {
+					return 400;
+				}
+			}
 			if(file.isFile()){
 				if(!file.canWrite()){
 					return 403;
 				}
 				else {
 					FileWriter fileWriter = new FileWriter(file);
-					fileWriter.write(Request.Body);
+					if(Request.Body != null) {
+						fileWriter.write(Request.Body);
+					}
 					fileWriter.close();
 					return 200;
 				}
@@ -122,7 +146,7 @@ public class ServerResponse {
 			}
 			else {
 				if(file.isDirectory()){
-					return 400;
+					return 200;
 				}
 			}
 		}
@@ -132,15 +156,29 @@ public class ServerResponse {
 	public String GetUrlContent() throws IOException{
 		String str = "";
 		String contentType="";
-		if(file.exists() && file.isFile() && file.canRead()){
-			str = Files.readString(file.toPath());
-			contentType = Files.probeContentType(file.toPath());
-
-		}
-		int contentLength = str.length();
-		if(contentLength != 0){
-			Request.Headers.put("Content-Length", Integer.toString(contentLength));
-			Request.Headers.put("Content-Type", contentType);
+		if(file.exists() && file.canRead()){
+			if(file.isFile()) {
+				StringBuilder builder = new StringBuilder(str);
+				BufferedReader br = new BufferedReader(new FileReader(file));
+				String temp;
+				while ((temp = br.readLine()) != null) {
+					builder.append(temp);
+				}
+				str = builder.toString();
+				contentType = Files.probeContentType(file.toPath());
+				int contentLength = str.length();
+				if(contentLength != 0){
+					Request.Headers.put("content-length", Integer.toString(contentLength));
+					Request.Headers.put("content-type", contentType);
+				}
+			}
+			if(file.isDirectory()){
+				File[] fileArray = file.listFiles();
+				StringBuilder builder = new StringBuilder(str);
+				for(int i=0; i<fileArray.length; i++){
+					builder.append(fileArray[i].getName()+"\n");
+				}
+			}
 		}
 		return str;
 	}
