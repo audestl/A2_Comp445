@@ -1,6 +1,5 @@
 import java.io.*;
 import java.nio.file.Files;
-import java.sql.SQLOutput;
 
 public class ServerResponse {
 
@@ -12,17 +11,16 @@ public class ServerResponse {
 
 
 	public ServerResponse(Request request, File rootpath) throws IOException {
-		if(request.Url.contains("/../")){
-			System.out.println("\nSecurity issue detected! URL contains \"/../\"");
-			System.exit(0);
-		}
-
 		this.Request = request;
 		this.RootPath = rootpath;
-		this. file = new File(RootPath, Request.Url);
-		this.statusCode = getStatusCode();
+		if(request.Url.contains("/../")){
+			this.statusCode = 400;
+		}
+		else {
+			this. file = new File(RootPath, Request.Url);
+			this.statusCode = getStatusCode();
+		}
 		this.statusPhrase = getStatusPhrase();
-
 	}
 
 	//Uses Rootpath and Request.Url
@@ -67,13 +65,18 @@ public class ServerResponse {
 		String responseMessage;
 		String data = GetUrlContent();
 		if(Request.Method.equals("GET")){
-			responseMessage = Request.Version + " " + getStatusCode() + " " + getStatusPhrase()+ "\r\n" +
-					Request.GetHeaderString() + "\r\n\r\n"+ GetUrlContent();
+			if(data.isEmpty()){
+				statusCode =404;
+				this.statusPhrase = getStatusPhrase();
+			}
+			responseMessage = Request.Version + " " + statusCode + " " + statusPhrase + "\r\n" +
+					Request.GetHeaderString() + "\r\n\r\n"+ data;
 			//add data content in the url file
 		}
 		else{
-			responseMessage = Request.Version + " " + getStatusCode() + " " + getStatusPhrase()+ "\r\n" +
-					Request.GetHeaderString() + "\r\n\r\n"+ GetUrlContent();
+
+			responseMessage = Request.Version + " " + statusCode + " " + statusPhrase + "\r\n" +
+					Request.GetHeaderString() + "\r\n\r\n";
 		}
 		return responseMessage;
 	}
@@ -84,27 +87,29 @@ public class ServerResponse {
 		String[] array = filePath.split("\\\\");
 
 		if(!file.exists()){
-			for(int i=1; i<array.length-1; i++){
-				File newFile = new File(newParent, array[i]);
-				String fileName = newFile.getName();
-				if(fileName.contains(".")){
-					System.out.println("Invalid folder name. Try again.");
-					System.exit(0);
-				}
-				else{
-					newFile.mkdir();
-					newParent = newFile.getPath();
-				}
-			}
-			if(array[array.length-1].contains(".")){
-				File newFile = new File(newParent, array[array.length-1]);
-				newFile.createNewFile();
+			if(!array[array.length-1].contains(".")){
+				return 400;
 			}
 			else {
-				File newFile = new File(newParent, array[array.length-1]);
-				newFile.mkdir();
+				for (int i = 1; i < array.length - 1; i++) {
+					File newFile = new File(newParent, array[i]);
+					String fileName = newFile.getName();
+					if (fileName.contains(".")) {
+						return 400;
+					} else {
+						newFile.mkdir();
+						newParent = newFile.getPath();
+					}
+				}
+				File newFile = new File(newParent, array[array.length - 1]);
+				newFile.createNewFile();
+				FileWriter fileWriter = new FileWriter(file);
+				if(Request.Body != null) {
+					fileWriter.write(Request.Body);
+				}
+				fileWriter.close();
+				return 201;
 			}
-			return 201;
 		}
 		else{
 			if(file.isDirectory()){
@@ -132,7 +137,7 @@ public class ServerResponse {
 		return 400;
 	}
 
-	public int ReadUrlFile(File file) throws IOException{
+	public int ReadUrlFile(File file){
 		if(!file.exists()){
 			return 404;
 		}
@@ -155,8 +160,8 @@ public class ServerResponse {
 
 	public String GetUrlContent() throws IOException{
 		String str = "";
-		String contentType="";
-		if(file.exists() && file.canRead()){
+		String contentType;
+		if(file!=null && file.exists() && file.canRead()){
 			if(file.isFile()) {
 				StringBuilder builder = new StringBuilder(str);
 				BufferedReader br = new BufferedReader(new FileReader(file));
@@ -172,12 +177,13 @@ public class ServerResponse {
 					Request.Headers.put("content-type", contentType);
 				}
 			}
-			if(file.isDirectory()){
+			if(file.isDirectory() && Request.Method.equals("GET")){
 				File[] fileArray = file.listFiles();
 				StringBuilder builder = new StringBuilder(str);
 				for(int i=0; i<fileArray.length; i++){
 					builder.append(fileArray[i].getName()+"\n");
 				}
+				str = builder.toString();
 			}
 		}
 		return str;

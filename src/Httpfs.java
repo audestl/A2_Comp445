@@ -88,7 +88,7 @@ public class Httpfs {
 				System.out.println("Client is now connected with Server.");
 			}
 			BufferedReader br = new BufferedReader(new InputStreamReader(client.getInputStream()));
-			PrintWriter out = new PrintWriter(client.getOutputStream());
+			OutputStreamWriter out = new OutputStreamWriter(client.getOutputStream());
 			HashMap<String, String> head = new HashMap();
 
 			String initial;
@@ -107,12 +107,12 @@ public class Httpfs {
 			ServerResponse response = new ServerResponse(request, rootPath);
 			if(verboseEnabled) {
 				System.out.println("\nPrinting client's request: \n\n");
-				System.out.println(request.toString()+"\n");
+				System.out.println(request.ToString()+"\n");
 				System.out.println("Server sending response back to client.");
 				System.out.println("\nPrinting Server's response: \n\n");
-				System.out.println(response.toString());
+				System.out.println(response.ToString());
 			}
-			out.print(response.ToString());
+			out.write(response.ToString());
 			out.flush();
 			out.close();
 			if(verboseEnabled) {
